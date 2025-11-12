@@ -24,11 +24,11 @@ export default function Dashboard() {
   const calmBufferRef = useRef<Float32Array>(new Float32Array(maxPoints));
   const calmHeadRef = useRef<number>(0);
   const calmCountRef = useRef<number>(0);
-  const [calmVersion, setCalmVersion] = useState(0);
+  const [calmTick, setCalmTick] = useState(false);
   const eegBufferRef = useRef<Float32Array>(new Float32Array(maxEegPoints));
   const eegHeadRef = useRef<number>(0);
   const eegCountRef = useRef<number>(0);
-  const [eegVersion, setEegVersion] = useState(0);
+  const [eegTick, setEegTick] = useState(false);
   const router = useRouter();
   const showCollectingToast = isPredicting && calmCountRef.current === 0;
 
@@ -74,7 +74,7 @@ export default function Dashboard() {
             if (eegCountRef.current < maxEegPoints) eegCountRef.current += 1;
           }
         }
-        setEegVersion((v) => v + 1);
+        setEegTick((v) => !v);
       }
     };
 
@@ -174,7 +174,7 @@ export default function Dashboard() {
     calmBufferRef.current[calmHeadRef.current] = value;
     calmHeadRef.current = (calmHeadRef.current + 1) % maxPoints;
     if (calmCountRef.current < maxPoints) calmCountRef.current += 1;
-    setCalmVersion((v) => v + 1);
+    setCalmTick((v) => !v);
   };
 
   const handleRealtimePrediction = async () => {
@@ -211,7 +211,7 @@ export default function Dashboard() {
       out[i] = calmBufferRef.current[idx];
     }
     return out;
-  }, [calmVersion]);
+  }, [calmTick]);
 
   const eegSnapshot = useMemo(() => {
     const count = eegCountRef.current;
@@ -223,7 +223,7 @@ export default function Dashboard() {
       out[i] = eegBufferRef.current[idx];
     }
     return out;
-  }, [eegVersion]);
+  }, [eegTick]);
 
   if (isLoading) {
     return (
