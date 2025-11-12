@@ -18,6 +18,14 @@ export default function Dashboard() {
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [isEEGStreaming, setIsEEGStreaming] = useState(false);
   const [isPredicting, setIsPredicting] = useState(false);
+  const [hasCalmPrediction, setHasCalmPrediction] = useState(false);
+  const [hasFFT, setHasFFT] = useState(false);
+  const [hasJawClench, setHasJawClench] = useState(false);
+  const [hasHeog, setHasHeog] = useState(false);
+  const [hasQualityScore, setHasQualityScore] = useState(false);
+  const [lastQualityScore, setLastQualityScore] = useState<number | null>(null);
+  const [lastJawClench, setLastJawClench] = useState<number | null>(null);
+  const [lastHeogDirection, setLastHeogDirection] = useState<-1 | 1 | null>(null);
   const maxPoints = 200;
   const maxEegPoints = 600;
   // Ring buffers for realtime series
@@ -30,7 +38,9 @@ export default function Dashboard() {
   const eegCountRef = useRef<number>(0);
   const [eegTick, setEegTick] = useState(false);
   const router = useRouter();
-  const showCollectingToast = isPredicting && calmCountRef.current === 0;
+  const hasAnyPrediction =
+    hasCalmPrediction || hasFFT || hasJawClench || hasHeog || hasQualityScore;
+  const showCollectingToast = isPredicting && !hasAnyPrediction;
 
   useEffect(() => {
     // Check if user is logged in
@@ -165,16 +175,47 @@ export default function Dashboard() {
   };
 
   const onPredictionMessage = (msg: any) => {
-    if (msg?.predictionType !== RealtimePredictions.CALM_SCORE) return;
-    const value =
-      msg?.result?.relaxation_index_display ??
-      msg?.result?.relaxation_index ??
-      null;
-    if (typeof value !== "number") return;
-    calmBufferRef.current[calmHeadRef.current] = value;
-    calmHeadRef.current = (calmHeadRef.current + 1) % maxPoints;
-    if (calmCountRef.current < maxPoints) calmCountRef.current += 1;
-    setCalmTick((v) => !v);
+    if (!msg?.predictionType) return;
+    switch (msg.predictionType) {
+      case RealtimePredictions.CALM_SCORE: {
+        if (!hasCalmPrediction) setHasCalmPrediction(true);
+        const value =
+          msg?.result?.relaxation_index_display ??
+          msg?.result?.relaxation_index ??
+          null;
+        if (typeof value !== "number") break;
+        calmBufferRef.current[calmHeadRef.current] = value;
+        calmHeadRef.current = (calmHeadRef.current + 1) % maxPoints;
+        if (calmCountRef.current < maxPoints) calmCountRef.current += 1;
+        setCalmTick((v) => !v);
+        break;
+      }
+      case RealtimePredictions.QUALITY_SCORE: {
+        setHasQualityScore(true);
+        const qs = msg?.result?.quality_score;
+        if (typeof qs === "number") setLastQualityScore(qs);
+        break;
+      }
+      case RealtimePredictions.JAW_CLENCH: {
+        setHasJawClench(true);
+        const res = msg?.result?.result;
+        if (typeof res === "number") setLastJawClench(res);
+        break;
+      }
+      case RealtimePredictions.BIN_HEOG: {
+        setHasHeog(true);
+        const heog = msg?.result?.heog;
+        if (heog === -1 || heog === 1) setLastHeogDirection(heog);
+        break;
+      }
+      case RealtimePredictions.FFT: {
+        setHasFFT(true);
+        // We just mark arrival; detailed FFT rendering can be added later
+        break;
+      }
+      default:
+        break;
+    }
   };
 
   const handleRealtimePrediction = async () => {
@@ -182,14 +223,36 @@ export default function Dashboard() {
 
     try {
       if(!isPredicting) {
+        setHasCalmPrediction(false);
+        setHasFFT(false);
+        setHasJawClench(false);
+        setHasHeog(false);
+        setHasQualityScore(false);
+        setLastQualityScore(null);
+        setLastJawClench(null);
+        setLastHeogDirection(null);
         await connectedEarbuds.subscribeRealtimePredictions(
-          [RealtimePredictions.CALM_SCORE],
+          [
+            RealtimePredictions.CALM_SCORE,
+            RealtimePredictions.QUALITY_SCORE,
+            RealtimePredictions.JAW_CLENCH,
+            RealtimePredictions.BIN_HEOG,
+            RealtimePredictions.FFT,
+          ],
           onPredictionMessage
         );
         setIsPredicting(true);
       } else {
         await connectedEarbuds.unsubscribeRealtimePredictions();
         setIsPredicting(false);
+        setHasCalmPrediction(false);
+        setHasFFT(false);
+        setHasJawClench(false);
+        setHasHeog(false);
+        setHasQualityScore(false);
+        setLastQualityScore(null);
+        setLastJawClench(null);
+        setLastHeogDirection(null);
       }
     } catch (error) {
       console.error(
@@ -294,6 +357,65 @@ export default function Dashboard() {
           >
             Logout
           </button>
+        </div>
+      </div>
+      {/* Realtime Predictions Overview */}
+      <div className="mt-6 w-full max-w-3xl p-4 bg-white rounded-lg shadow-md dark:bg-gray-800">
+        <h3 className="text-lg font-semibold mb-3">Realtime Predictions Overview</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="p-3 rounded border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <span className="font-medium">Calm Score</span>
+              <span className={`h-2.5 w-2.5 rounded-full ${hasCalmPrediction ? "bg-emerald-500" : "bg-gray-300"}`} />
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+              {hasCalmPrediction
+                ? `Latest: ${calmSnapshot.length ? calmSnapshot[calmSnapshot.length - 1].toFixed(1) : "—"}`
+                : "Waiting…"}
+            </div>
+          </div>
+          <div className="p-3 rounded border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <span className="font-medium">Quality Score</span>
+              <span className={`h-2.5 w-2.5 rounded-full ${hasQualityScore ? "bg-emerald-500" : "bg-gray-300"}`} />
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+              {hasQualityScore
+                ? `Latest: ${lastQualityScore ?? "—"}`
+                : "Waiting…"}
+            </div>
+          </div>
+          <div className="p-3 rounded border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <span className="font-medium">Jaw Clench</span>
+              <span className={`h-2.5 w-2.5 rounded-full ${hasJawClench ? "bg-emerald-500" : "bg-gray-300"}`} />
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+              {hasJawClench
+                ? `Latest: ${lastJawClench ?? "—"}`
+                : "Waiting…"}
+            </div>
+          </div>
+          <div className="p-3 rounded border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <span className="font-medium">Eye Movement (HEOG)</span>
+              <span className={`h-2.5 w-2.5 rounded-full ${hasHeog ? "bg-emerald-500" : "bg-gray-300"}`} />
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+              {hasHeog
+                ? `Latest: ${lastHeogDirection === -1 ? "LEFT" : lastHeogDirection === 1 ? "RIGHT" : "—"}`
+                : "Waiting…"}
+            </div>
+          </div>
+          <div className="p-3 rounded border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <span className="font-medium">FFT</span>
+              <span className={`h-2.5 w-2.5 rounded-full ${hasFFT ? "bg-emerald-500" : "bg-gray-300"}`} />
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+              {hasFFT ? "Receiving…" : "Waiting…"}
+            </div>
+          </div>
         </div>
       </div>
       {calmSnapshot.length > 0 && (
