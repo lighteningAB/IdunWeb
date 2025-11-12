@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Guardian } from "@iduntech/idun-guardian-sdk";
 import { StreamsTypes } from "@iduntech/idun-guardian-sdk";
+import { RealtimePredictions } from "@iduntech/idun-guardian-sdk";
 
 export default function Dashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -16,7 +17,20 @@ export default function Dashboard() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [isEEGStreaming, setIsEEGStreaming] = useState(false);
+  const [isPredicting, setIsPredicting] = useState(false);
+  const maxPoints = 200;
+  const maxEegPoints = 600;
+  // Ring buffers for realtime series
+  const calmBufferRef = useRef<Float32Array>(new Float32Array(maxPoints));
+  const calmHeadRef = useRef<number>(0);
+  const calmCountRef = useRef<number>(0);
+  const [calmVersion, setCalmVersion] = useState(0);
+  const eegBufferRef = useRef<Float32Array>(new Float32Array(maxEegPoints));
+  const eegHeadRef = useRef<number>(0);
+  const eegCountRef = useRef<number>(0);
+  const [eegVersion, setEegVersion] = useState(0);
   const router = useRouter();
+  const showCollectingToast = isPredicting && calmCountRef.current === 0;
 
   useEffect(() => {
     // Check if user is logged in
@@ -50,18 +64,25 @@ export default function Dashboard() {
     if (!isEEGStreaming || !connectedEarbuds) return;
 
     const handleSocketData = (data: any) => {
-      console.log("EEG Data received:", data);
+      // Expecting an array of ChartData { x, y }
+      if (Array.isArray(data)) {
+        for (let i = 0; i < data.length; i++) {
+          const y = data[i] && typeof data[i].y === "number" ? data[i].y : null;
+          if (typeof y === "number") {
+            eegBufferRef.current[eegHeadRef.current] = y;
+            eegHeadRef.current = (eegHeadRef.current + 1) % maxEegPoints;
+            if (eegCountRef.current < maxEegPoints) eegCountRef.current += 1;
+          }
+        }
+        setEegVersion((v) => v + 1);
+      }
     };
 
     const setupStream = async () => {
       try {
-        // StreamsTypes.RAW_EEG is also an option if you need unfiltered data
-        // Handles subscription to the socket data
-        await connectedEarbuds.startRealtimeStream(StreamsTypes.FILTERED_EEG);
-
-        // Handles the data received from the socket
+        // Start realtime RAW_EEG stream for direct EEG samples via websocket
+        await connectedEarbuds.startRealtimeStream(StreamsTypes.RAW_EEG);
         connectedEarbuds.listenToSocketData(handleSocketData);
-        console.log("EEG stream setup complete");
       } catch (error) {
         console.error("Error setting up EEG stream:", error);
       }
@@ -71,7 +92,6 @@ export default function Dashboard() {
 
     return () => {
       connectedEarbuds.stopRealtimeStream();
-      console.log("EEG stream stopped");
     };
   }, [isEEGStreaming, connectedEarbuds]);
 
@@ -144,6 +164,67 @@ export default function Dashboard() {
     }
   };
 
+  const onPredictionMessage = (msg: any) => {
+    if (msg?.predictionType !== RealtimePredictions.CALM_SCORE) return;
+    const value =
+      msg?.result?.relaxation_index_display ??
+      msg?.result?.relaxation_index ??
+      null;
+    if (typeof value !== "number") return;
+    calmBufferRef.current[calmHeadRef.current] = value;
+    calmHeadRef.current = (calmHeadRef.current + 1) % maxPoints;
+    if (calmCountRef.current < maxPoints) calmCountRef.current += 1;
+    setCalmVersion((v) => v + 1);
+  };
+
+  const handleRealtimePrediction = async () => {
+    if(!connectedEarbuds || !isEEGStreaming) return;
+
+    try {
+      if(!isPredicting) {
+        await connectedEarbuds.subscribeRealtimePredictions(
+          [RealtimePredictions.CALM_SCORE],
+          onPredictionMessage
+        );
+        setIsPredicting(true);
+      } else {
+        await connectedEarbuds.unsubscribeRealtimePredictions();
+        setIsPredicting(false);
+      }
+    } catch (error) {
+      console.error(
+        `Failed to ${isPredicting ? "stop" : "start"} realtime prediction:`,
+        error,
+      );
+    }
+
+  }
+
+  // Snapshots for rendering from ring buffers
+  const calmSnapshot = useMemo(() => {
+    const count = calmCountRef.current;
+    if (count === 0) return [];
+    const out = new Array<number>(count);
+    const head = calmHeadRef.current;
+    for (let i = 0; i < count; i++) {
+      const idx = (head - count + i + maxPoints) % maxPoints;
+      out[i] = calmBufferRef.current[idx];
+    }
+    return out;
+  }, [calmVersion]);
+
+  const eegSnapshot = useMemo(() => {
+    const count = eegCountRef.current;
+    if (count === 0) return [];
+    const out = new Array<number>(count);
+    const head = eegHeadRef.current;
+    for (let i = 0; i < count; i++) {
+      const idx = (head - count + i + maxEegPoints) % maxEegPoints;
+      out[i] = eegBufferRef.current[idx];
+    }
+    return out;
+  }, [eegVersion]);
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -188,6 +269,15 @@ export default function Dashboard() {
               >
                 {isEEGStreaming ? "Stop EEG Stream" : "Start EEG Stream"}
               </button>
+              {isEEGStreaming && (
+                <button
+                  className="bg-green-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+                  onClick={handleRealtimePrediction}
+                >
+                  {isPredicting ? "Stop Realtime Prediction" : "Start Realtime Prediction"}
+                </button>
+                )
+              }
               <button
                 className="bg-slate-500 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
                 onClick={handleDisconnectDevice}
@@ -206,6 +296,119 @@ export default function Dashboard() {
           </button>
         </div>
       </div>
+      {calmSnapshot.length > 0 && (
+        <div className="mt-6 w-full max-w-3xl p-4 bg-white rounded-lg shadow-md dark:bg-gray-800">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-lg font-semibold">Calm Score (Realtime)</h3>
+            <span className="text-sm text-gray-600 dark:text-gray-300">
+              Latest: {calmSnapshot[calmSnapshot.length - 1].toFixed(1)}
+            </span>
+          </div>
+          <div className="w-full h-32">
+            <svg
+              viewBox={`0 0 ${maxPoints - 1} 100`}
+              preserveAspectRatio="none"
+              className="w-full h-full"
+            >
+              <g stroke="#e5e7eb" strokeWidth="0.5">
+                <line x1="0" y1="0" x2={maxPoints - 1} y2="0" />
+                <line x1="0" y1="25" x2={maxPoints - 1} y2="25" />
+                <line x1="0" y1="50" x2={maxPoints - 1} y2="50" />
+                <line x1="0" y1="75" x2={maxPoints - 1} y2="75" />
+                <line x1="0" y1="100" x2={maxPoints - 1} y2="100" />
+              </g>
+              <g fill="#6b7280" fontSize="8">
+                <text x="2" y="8">100</text>
+                <text x="2" y="33">75</text>
+                <text x="2" y="58">50</text>
+                <text x="2" y="83">25</text>
+                <text x="2" y="98">0</text>
+              </g>
+              <polyline
+                fill="none"
+                stroke="#3b82f6"
+                strokeWidth="2"
+                points={
+                  calmSnapshot
+                    .map((v, i) => {
+                      const x =
+                        calmSnapshot.length > 1
+                          ? (i * (maxPoints - 1)) / (calmSnapshot.length - 1)
+                          : 0;
+                      const clamped = Math.max(0, Math.min(100, v));
+                      const y = 100 - clamped;
+                      return `${x},${y}`;
+                    })
+                    .join(" ")
+                }
+              />
+            </svg>
+          </div>
+        </div>
+      )}
+      {eegSnapshot.length > 0 && (
+        <div className="mt-6 w-full max-w-3xl p-4 bg-white rounded-lg shadow-md dark:bg-gray-800">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-lg font-semibold">Raw EEG (Realtime)</h3>
+            <span className="text-sm text-gray-600 dark:text-gray-300">
+              Latest: {eegSnapshot[eegSnapshot.length - 1].toFixed(0)}
+            </span>
+          </div>
+          <div className="w-full h-32">
+            <svg
+              viewBox={`0 0 ${maxEegPoints - 1} 100`}
+              preserveAspectRatio="none"
+              className="w-full h-full"
+            >
+              <g stroke="#e5e7eb" strokeWidth="0.5">
+                <line x1="0" y1="0" x2={maxEegPoints - 1} y2="0" />
+                <line x1="0" y1="25" x2={maxEegPoints - 1} y2="25" />
+                <line x1="0" y1="50" x2={maxEegPoints - 1} y2="50" />
+                <line x1="0" y1="75" x2={maxEegPoints - 1} y2="75" />
+                <line x1="0" y1="100" x2={maxEegPoints - 1} y2="100" />
+              </g>
+              {(() => {
+                const min = Math.min(...eegSnapshot);
+                const max = Math.max(...eegSnapshot);
+                const span = max - min || 1;
+                const points = eegSnapshot
+                  .map((v, i) => {
+                    const x =
+                      eegSnapshot.length > 1
+                        ? (i * (maxEegPoints - 1)) / (eegSnapshot.length - 1)
+                        : 0;
+                    const norm = ((v - min) / span) * 100;
+                    const y = 100 - norm;
+                    return `${x},${y}`;
+                  })
+                  .join(" ");
+                return (
+                  <polyline
+                    fill="none"
+                    stroke="#10b981"
+                    strokeWidth="1.5"
+                    points={points}
+                  />
+                );
+              })()}
+            </svg>
+          </div>
+          <div className="mt-1 text-xs text-gray-500 dark:text-gray-300">
+            Auto-scaled to current window (min/max).
+          </div>
+        </div>
+      )}
+      {showCollectingToast && (
+        <div className="fixed bottom-4 right-4 z-50">
+          <div className="flex items-center gap-2 rounded-md bg-slate-900 text-white px-4 py-3 shadow-lg">
+            <span className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+            </span>
+            <span>Collecting data for prediction…</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
