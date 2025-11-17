@@ -6,11 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "export": "next export",
     "lint": "eslint"
   },
   "dependencies": {
     "@byteowls/capacitor-oauth2": "5.0.0",
     "@capacitor-community/bluetooth-le": "6.0.1",
+    "@capacitor/android": "6.1.2",
     "@capacitor/browser": "6.0.2",
     "@capacitor/core": "6.1.2",
     "@iduntech/idun-guardian-sdk": "^0.1.38",
@@ -20,6 +22,7 @@
     "websocket-ts": "1.1.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "6.1.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

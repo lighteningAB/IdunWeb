@@ -2,17 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Guardian } from "@iduntech/idun-guardian-sdk";
+import { getGuardian } from "@/lib/guardian";
 
 export default function Home() {
-  const [guardianClient, setGuardianClient] = useState<Guardian | null>(null);
+  const [guardianClient, setGuardianClient] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     // Initialize Guardian client on component mount
-    const client = new Guardian();
-    client.isRemoteDevice = true;
+    const client = getGuardian();
     setGuardianClient(client);
   }, []);
 

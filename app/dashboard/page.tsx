@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Capacitor } from "@capacitor/core";
+import { BleBg } from "@/src/capacitor/bleBg";
 import { useRouter } from "next/navigation";
-import { Guardian } from "@iduntech/idun-guardian-sdk";
-import { StreamsTypes } from "@iduntech/idun-guardian-sdk";
-import { RealtimePredictions } from "@iduntech/idun-guardian-sdk";
+import { getGuardian, Guardian, StreamsTypes, RealtimePredictions } from "@/lib/guardian";
 
 export default function Dashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -18,6 +18,7 @@ export default function Dashboard() {
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [isEEGStreaming, setIsEEGStreaming] = useState(false);
   const [isPredicting, setIsPredicting] = useState(false);
+  const [bgRunning, setBgRunning] = useState(false);
   const [hasCalmPrediction, setHasCalmPrediction] = useState(false);
   const [hasFFT, setHasFFT] = useState(false);
   const [hasJawClench, setHasJawClench] = useState(false);
@@ -47,8 +48,7 @@ export default function Dashboard() {
     const checkAuth = async () => {
       try {
         // Initialize Guardian client
-        const client = new Guardian();
-        client.isRemoteDevice = true;
+        const client = getGuardian();
         setGuardianClient(client);
 
         // Verify with SDK
@@ -69,6 +69,17 @@ export default function Dashboard() {
 
     checkAuth();
   }, [router]);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const sub = BleBg.addListener("serviceStatus", (e: any) => {
+      setBgRunning(!!e?.running);
+    });
+    BleBg.getStatus().then((s) => setBgRunning(!!s?.running)).catch(() => {});
+    return () => {
+      sub.then((h) => h.remove()).catch(() => {});
+    };
+  }, []);
 
   useEffect(() => {
     if (!isEEGStreaming || !connectedEarbuds) return;
@@ -172,6 +183,20 @@ export default function Dashboard() {
         error,
       );
     }
+  };
+
+  const handleStartBackground = async () => {
+    if (!Capacitor.isNativePlatform()) return;
+    await BleBg.startService({});
+    const s = await BleBg.getStatus();
+    setBgRunning(!!s?.running);
+  };
+
+  const handleStopBackground = async () => {
+    if (!Capacitor.isNativePlatform()) return;
+    await BleBg.stopService();
+    const s = await BleBg.getStatus();
+    setBgRunning(!!s?.running);
   };
 
   const onPredictionMessage = (msg: any) => {
@@ -348,6 +373,25 @@ export default function Dashboard() {
               >
                 {isDisconnecting ? "Disconnecting..." : "Disconnect Device"}
               </button>
+              {Capacitor.isNativePlatform() && (
+                <div className="flex gap-2 mt-2">
+                  {!bgRunning ? (
+                    <button
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 px-4 rounded"
+                      onClick={handleStartBackground}
+                    >
+                      Start Background Logging
+                    </button>
+                  ) : (
+                    <button
+                      className="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded"
+                      onClick={handleStopBackground}
+                    >
+                      Stop Background Logging
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
