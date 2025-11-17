@@ -1,7 +1,5 @@
 'use client';
 
-import '@/src/envPatch';
-import '@/src/patchOAuth';
 import { Guardian, StreamsTypes, RealtimePredictions } from '@iduntech/idun-guardian-sdk';
 
 let guardianInstance: Guardian | null = null;

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Script from "next/script";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,21 +27,6 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Script id="env-preload" strategy="beforeInteractive">
-          {`
-            (function () {
-              var w = window;
-              w.process = w.process || {};
-              w.process.env = Object.assign({}, w.process.env || {}, {
-                NEXT_PUBLIC_URI_SCHEME_ANDROID: ${JSON.stringify(process.env.NEXT_PUBLIC_URI_SCHEME_ANDROID || "com.nothingtech.app")},
-                NEXT_PUBLIC_URI_SCHEME_IOS: ${JSON.stringify(process.env.NEXT_PUBLIC_URI_SCHEME_IOS || "com.nothingtech.app")},
-                NEXT_PUBLIC_AUTH_APPID_ANDROID: ${JSON.stringify(process.env.NEXT_PUBLIC_AUTH_APPID_ANDROID || "7nd2k9flb3arolsv6gnoegphjm")},
-                NEXT_PUBLIC_AUTH_APPID_IOS: ${JSON.stringify(process.env.NEXT_PUBLIC_AUTH_APPID_IOS || "7nd2k9flb3arolsv6gnoegphjm")},
-                NEXT_PUBLIC_AUTH_APPID_WEB: ${JSON.stringify(process.env.NEXT_PUBLIC_AUTH_APPID_WEB || "7nd2k9flb3arolsv6gnoegphjm")}
-              });
-            })();
-          `}
-        </Script>
         {children}
       </body>
     </html>
