@@ -3,11 +3,14 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 Thanks to https://github.com/iduntech/idun-sample-app-js
 
 to load onto phone:
-yarn build
-yarn export
-npx cap sync android
-npx cap run android
 
+```bash
+yarn build
+
+npx cap sync android
+
+npx cap run android
+```
 
 ## Getting Started
 
