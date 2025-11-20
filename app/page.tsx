@@ -86,7 +86,7 @@ function EarModel(props: any) {
         if (name === "body10" || name === "body2") {
           // Black plastic: dark, slightly shiny
           mesh.material = new THREE.MeshStandardMaterial({
-            color: 0x000000,
+            color: 0x202020,
             metalness: 0.0,
             roughness: 0.1,
           });
