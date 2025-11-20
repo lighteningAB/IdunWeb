@@ -98,6 +98,19 @@ function EarModel(props: any) {
             roughness: 0.85,
           });
         }
+        else if (name === "body1") {
+          // White Acrylic
+          mesh.material = new THREE.MeshPhysicalMaterial({
+            color: 0xd3d3d3,
+            metalness: 0.0,
+            roughness: 0.0,
+            transmission: 0.95,
+            thickness: 0.5,
+            ior: 1.5,
+            clearcoat: 1.0,
+            clearcoatRoughness: 0.0,
+          });
+        }
       }
     });
 
@@ -134,15 +147,15 @@ function RotatingEarPair() {
       <RotatingEar
         position={[-0.2, 0.8, 0]}
         scale={0.2}
-        speedY={0.25}
-        speedZ={0.50}
+        speedY={0.5}
+        speedZ={-0.01}
       />
       {/* Right earbud, mirrored and with a slightly different rotation */}
       <RotatingEar
         position={[0.2, -0.6, 0]}
         scale={[-0.2, 0.2, 0.2]}
-        speedY={-0.20}
-        speedZ={0.4}
+        speedY={-0.5}
+        speedZ={-0.01}
       />
     </>
   );

@@ -327,8 +327,8 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8">
-      <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
-      <div className="mb-8 p-6 bg-white rounded-lg shadow-md dark:bg-gray-800 w-full max-w-md">
+      <h1 className="text-3xl font-bold mb-8">Brainwave Dashboard</h1>
+      <div className="mb-8 p-6 bg-[#f2f2f2]/90 rounded-lg dark:bg-gray-800 w-full max-w-md">
         <h2 className="text-xl font-semibold mb-4">Successfully Logged In!</h2>
         <p className="mb-4">
           You are now connected to your IDUN Guardian account.
