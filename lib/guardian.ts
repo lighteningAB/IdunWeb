@@ -1,6 +1,6 @@
 'use client';
 
-import { Guardian } from '@iduntech/idun-guardian-sdk';
+import { Guardian, StreamsTypes, RealtimePredictions } from '@iduntech/idun-guardian-sdk';
 
 let guardianInstance: Guardian | null = null;
 
@@ -14,5 +14,6 @@ export function getGuardian(): Guardian {
 }
 
 export type { Guardian };
+export { StreamsTypes, RealtimePredictions };
 
 

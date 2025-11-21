@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Capacitor } from "@capacitor/core";
+import { BleBg } from "@/src/capacitor/bleBg";
 import { useRouter } from "next/navigation";
-import { Guardian } from "@iduntech/idun-guardian-sdk";
-import { StreamsTypes } from "@iduntech/idun-guardian-sdk";
-import { RealtimePredictions } from "@iduntech/idun-guardian-sdk";
+import { getGuardian, Guardian, StreamsTypes, RealtimePredictions } from "@/lib/guardian";
 
 export default function Dashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -18,6 +18,15 @@ export default function Dashboard() {
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [isEEGStreaming, setIsEEGStreaming] = useState(false);
   const [isPredicting, setIsPredicting] = useState(false);
+  const [bgRunning, setBgRunning] = useState(false);
+  const [hasCalmPrediction, setHasCalmPrediction] = useState(false);
+  const [hasFFT, setHasFFT] = useState(false);
+  const [hasJawClench, setHasJawClench] = useState(false);
+  const [hasHeog, setHasHeog] = useState(false);
+  const [hasQualityScore, setHasQualityScore] = useState(false);
+  const [lastQualityScore, setLastQualityScore] = useState<number | null>(null);
+  const [lastJawClench, setLastJawClench] = useState<number | null>(null);
+  const [lastHeogDirection, setLastHeogDirection] = useState<-1 | 1 | null>(null);
   const maxPoints = 200;
   const maxEegPoints = 600;
   // Ring buffers for realtime series
@@ -30,15 +39,16 @@ export default function Dashboard() {
   const eegCountRef = useRef<number>(0);
   const [eegTick, setEegTick] = useState(false);
   const router = useRouter();
-  const showCollectingToast = isPredicting && calmCountRef.current === 0;
+  const hasAnyPrediction =
+    hasCalmPrediction || hasFFT || hasJawClench || hasHeog || hasQualityScore;
+  const showCollectingToast = isPredicting && !hasAnyPrediction;
 
   useEffect(() => {
     // Check if user is logged in
     const checkAuth = async () => {
       try {
         // Initialize Guardian client
-        const client = new Guardian();
-        client.isRemoteDevice = true;
+        const client = getGuardian();
         setGuardianClient(client);
 
         // Verify with SDK
@@ -59,6 +69,17 @@ export default function Dashboard() {
 
     checkAuth();
   }, [router]);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const sub = BleBg.addListener("serviceStatus", (e: any) => {
+      setBgRunning(!!e?.running);
+    });
+    BleBg.getStatus().then((s) => setBgRunning(!!s?.running)).catch(() => {});
+    return () => {
+      sub.then((h) => h.remove()).catch(() => {});
+    };
+  }, []);
 
   useEffect(() => {
     if (!isEEGStreaming || !connectedEarbuds) return;
@@ -97,13 +118,34 @@ export default function Dashboard() {
 
   const handleLogout = async () => {
     try {
-      if (guardianClient) {
-        await guardianClient.logout();
-        // No need for router.push as the SDK will redirect
+      // Clear all local storage and session storage
+      if (typeof window !== 'undefined') {
+        // Clear all localStorage items
+        localStorage.clear();
+        // Clear all sessionStorage items
+        sessionStorage.clear();
+        
+        // Also try to clear any SDK-specific storage
+        // The SDK might store tokens in specific keys
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key) keysToRemove.push(key);
+        }
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+        
+        // Immediately redirect to home
+        // This bypasses the OAuth server logout page entirely
+        window.location.href = "/";
       }
     } catch (error) {
       console.error("Logout failed:", error);
-      window.location.href = "/";
+      // Fallback: always redirect to home
+      if (typeof window !== 'undefined') {
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = "/";
+      }
     }
   };
 
@@ -164,17 +206,62 @@ export default function Dashboard() {
     }
   };
 
+  const handleStartBackground = async () => {
+    if (!Capacitor.isNativePlatform()) return;
+    await BleBg.startService({});
+    const s = await BleBg.getStatus();
+    setBgRunning(!!s?.running);
+  };
+
+  const handleStopBackground = async () => {
+    if (!Capacitor.isNativePlatform()) return;
+    await BleBg.stopService();
+    const s = await BleBg.getStatus();
+    setBgRunning(!!s?.running);
+  };
+
   const onPredictionMessage = (msg: any) => {
-    if (msg?.predictionType !== RealtimePredictions.CALM_SCORE) return;
-    const value =
-      msg?.result?.relaxation_index_display ??
-      msg?.result?.relaxation_index ??
-      null;
-    if (typeof value !== "number") return;
-    calmBufferRef.current[calmHeadRef.current] = value;
-    calmHeadRef.current = (calmHeadRef.current + 1) % maxPoints;
-    if (calmCountRef.current < maxPoints) calmCountRef.current += 1;
-    setCalmTick((v) => !v);
+    if (!msg?.predictionType) return;
+    switch (msg.predictionType) {
+      case RealtimePredictions.CALM_SCORE: {
+        if (!hasCalmPrediction) setHasCalmPrediction(true);
+        const value =
+          msg?.result?.relaxation_index_display ??
+          msg?.result?.relaxation_index ??
+          null;
+        if (typeof value !== "number") break;
+        calmBufferRef.current[calmHeadRef.current] = value;
+        calmHeadRef.current = (calmHeadRef.current + 1) % maxPoints;
+        if (calmCountRef.current < maxPoints) calmCountRef.current += 1;
+        setCalmTick((v) => !v);
+        break;
+      }
+      case RealtimePredictions.QUALITY_SCORE: {
+        setHasQualityScore(true);
+        const qs = msg?.result?.quality_score;
+        if (typeof qs === "number") setLastQualityScore(qs);
+        break;
+      }
+      case RealtimePredictions.JAW_CLENCH: {
+        setHasJawClench(true);
+        const res = msg?.result?.result;
+        if (typeof res === "number") setLastJawClench(res);
+        break;
+      }
+      case RealtimePredictions.BIN_HEOG: {
+        setHasHeog(true);
+        const heog = msg?.result?.heog;
+        if (heog === -1 || heog === 1) setLastHeogDirection(heog);
+        break;
+      }
+      case RealtimePredictions.FFT: {
+        setHasFFT(true);
+        // We just mark arrival; detailed FFT rendering can be added later
+        break;
+      }
+      default:
+        break;
+    }
   };
 
   const handleRealtimePrediction = async () => {
@@ -182,14 +269,36 @@ export default function Dashboard() {
 
     try {
       if(!isPredicting) {
+        setHasCalmPrediction(false);
+        setHasFFT(false);
+        setHasJawClench(false);
+        setHasHeog(false);
+        setHasQualityScore(false);
+        setLastQualityScore(null);
+        setLastJawClench(null);
+        setLastHeogDirection(null);
         await connectedEarbuds.subscribeRealtimePredictions(
-          [RealtimePredictions.CALM_SCORE],
+          [
+            RealtimePredictions.CALM_SCORE,
+            RealtimePredictions.QUALITY_SCORE,
+            RealtimePredictions.JAW_CLENCH,
+            RealtimePredictions.BIN_HEOG,
+            RealtimePredictions.FFT,
+          ],
           onPredictionMessage
         );
         setIsPredicting(true);
       } else {
         await connectedEarbuds.unsubscribeRealtimePredictions();
         setIsPredicting(false);
+        setHasCalmPrediction(false);
+        setHasFFT(false);
+        setHasJawClench(false);
+        setHasHeog(false);
+        setHasQualityScore(false);
+        setLastQualityScore(null);
+        setLastJawClench(null);
+        setLastHeogDirection(null);
       }
     } catch (error) {
       console.error(
@@ -227,8 +336,8 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        Loading...
+      <div className="flex justify-center items-center h-screen font-ntype82">
+        <span className="text-foreground">Loading...</span>
       </div>
     );
   }
@@ -238,18 +347,14 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-8">
-      <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
-      <div className="mb-8 p-6 bg-white rounded-lg shadow-md dark:bg-gray-800 w-full max-w-md">
-        <h2 className="text-xl font-semibold mb-4">Successfully Logged In!</h2>
-        <p className="mb-4">
-          You are now connected to your IDUN Guardian account.
-        </p>
+    <div className="flex flex-col items-center justify-center min-h-screen p-8 font-ntype82 bg-background">
+      <h1 className="text-3xl font-bold mb-8 text-foreground font-ndot">Brainwave Dashboard</h1>
+      <div className="mb-8 p-6 bg-card dark:bg-card rounded-lg w-full max-w-md border border-border shadow-lg">
 
         <div className="flex flex-col gap-4 mt-6">
           {!connectedEarbuds ? (
             <button
-              className="bg-sky-500 hover:bg-sky-600 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+              className="bg-[var(--index-blue)] hover:opacity-90 active:opacity-70 text-white font-bold py-2 px-4 rounded disabled:opacity-50 font-ntype82 transition-opacity dark:bg-accent dark:text-accent-foreground"
               onClick={handleConnectDevice}
               disabled={isConnecting}
             >
@@ -257,67 +362,153 @@ export default function Dashboard() {
             </button>
           ) : (
             <div className="flex flex-col gap-3">
-              <div className="p-4 bg-green-50 dark:bg-green-800 rounded-md">
-                <p className="font-medium">Device Connected!</p>
+              <div className="p-4 bg-muted rounded-md border border-border">
+                <p className="font-medium text-muted-foreground font-ntype82">Device Connected!</p>
                 {batteryLevel !== undefined && (
-                  <p className="text-sm mt-1">Battery Level: {batteryLevel}%</p>
+                  <p className="text-sm mt-1 text-muted-foreground font-ntype82">Battery Level: {batteryLevel}%</p>
                 )}
               </div>
               <button
-                className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+                className={`${
+                  isEEGStreaming ? "bg-destructive text-white" : "bg-accent text-accent-foreground"
+                } hover:opacity-90 active:opacity-70 font-bold py-2 px-4 rounded font-ntype82 transition-opacity disabled:opacity-50`}
                 onClick={handleEEGStream}
+                disabled={isDisconnecting}
               >
                 {isEEGStreaming ? "Stop EEG Stream" : "Start EEG Stream"}
               </button>
+
               {isEEGStreaming && (
                 <button
-                  className="bg-green-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+                  className={`${
+                    isPredicting ? "bg-destructive text-white" : "bg-accent text-accent-foreground"
+                  } hover:opacity-90 active:opacity-70 font-bold py-2 px-4 rounded font-ntype82 transition-opacity disabled:opacity-50`}
                   onClick={handleRealtimePrediction}
+                  disabled={isDisconnecting}
                 >
                   {isPredicting ? "Stop Realtime Prediction" : "Start Realtime Prediction"}
                 </button>
-                )
-              }
+              )}
               <button
-                className="bg-slate-500 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+                className="bg-destructive hover:opacity-90 active:opacity-70 text-white font-bold py-2 px-4 rounded disabled:opacity-50 font-ntype82 transition-opacity"
                 onClick={handleDisconnectDevice}
                 disabled={isDisconnecting}
               >
                 {isDisconnecting ? "Disconnecting..." : "Disconnect Device"}
               </button>
+              {Capacitor.isNativePlatform() && (
+                <div>
+                  {!bgRunning ? (
+                    <button
+                      className="bg-[var(--brand-yellow)] hover:opacity-90 active:opacity-70 text-black font-bold py-2 px-4 rounded font-ntype82 transition-opacity disabled:opacity-50"
+                      onClick={handleStartBackground}
+                      disabled={isDisconnecting}
+                    >
+                      Start Background Logging
+                    </button>
+                  ) : (
+                    <button
+                      className="bg-[var(--brand-yellow)] hover:opacity-90 active:opacity-70 text-black font-bold py-2 px-4 rounded font-ntype82 transition-opacity disabled:opacity-50"
+                      onClick={handleStopBackground}
+                      disabled={isDisconnecting}
+                    >
+                      Stop Background Logging
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
           <button
-            className="bg-rose-500 hover:bg-rose-600 text-white font-bold py-2 px-4 rounded mt-4"
+            className="bg-destructive hover:opacity-90 active:opacity-70 text-white font-bold py-2 px-4 rounded mt-4 font-ntype82 transition-opacity"
             onClick={handleLogout}
           >
             Logout
           </button>
         </div>
       </div>
+      {/* Realtime Predictions Overview */}
+      <div className="mt-6 w-full max-w-3xl p-4 bg-card dark:bg-card rounded-lg shadow-md border border-border">
+        <h3 className="text-lg font-semibold mb-3 text-card-foreground font-ntype82">Realtime Predictions Overview</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="p-3 rounded border border-border bg-muted">
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-muted-foreground font-ntype82">Calm Score</span>
+              <span className={`h-2.5 w-2.5 rounded-full ${hasCalmPrediction ? "bg-chart-1" : "bg-muted-foreground/30"}`} />
+            </div>
+            <div className="text-sm text-muted-foreground mt-1 font-ntype82">
+              {hasCalmPrediction
+                ? `Latest: ${calmSnapshot.length ? calmSnapshot[calmSnapshot.length - 1].toFixed(1) : "—"}`
+                : "Waiting…"}
+            </div>
+          </div>
+          <div className="p-3 rounded border border-border bg-muted">
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-muted-foreground font-ntype82">Quality Score</span>
+              <span className={`h-2.5 w-2.5 rounded-full ${hasQualityScore ? "bg-chart-1" : "bg-muted-foreground/30"}`} />
+            </div>
+            <div className="text-sm text-muted-foreground mt-1 font-ntype82">
+              {hasQualityScore
+                ? `Latest: ${lastQualityScore ?? "—"}`
+                : "Waiting…"}
+            </div>
+          </div>
+          <div className="p-3 rounded border border-border bg-muted">
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-muted-foreground font-ntype82">Jaw Clench</span>
+              <span className={`h-2.5 w-2.5 rounded-full ${hasJawClench ? "bg-chart-1" : "bg-muted-foreground/30"}`} />
+            </div>
+            <div className="text-sm text-muted-foreground mt-1 font-ntype82">
+              {hasJawClench
+                ? `Latest: ${lastJawClench ?? "—"}`
+                : "Waiting…"}
+            </div>
+          </div>
+          <div className="p-3 rounded border border-border bg-muted">
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-muted-foreground font-ntype82">Eye Movement (HEOG)</span>
+              <span className={`h-2.5 w-2.5 rounded-full ${hasHeog ? "bg-chart-1" : "bg-muted-foreground/30"}`} />
+            </div>
+            <div className="text-sm text-muted-foreground mt-1 font-ntype82">
+              {hasHeog
+                ? `Latest: ${lastHeogDirection === -1 ? "LEFT" : lastHeogDirection === 1 ? "RIGHT" : "—"}`
+                : "Waiting…"}
+            </div>
+          </div>
+          <div className="p-3 rounded border border-border bg-muted">
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-muted-foreground font-ntype82">FFT</span>
+              <span className={`h-2.5 w-2.5 rounded-full ${hasFFT ? "bg-chart-1" : "bg-muted-foreground/30"}`} />
+            </div>
+            <div className="text-sm text-muted-foreground mt-1 font-ntype82">
+              {hasFFT ? "Receiving…" : "Waiting…"}
+            </div>
+          </div>
+        </div>
+      </div>
       {calmSnapshot.length > 0 && (
-        <div className="mt-6 w-full max-w-3xl p-4 bg-white rounded-lg shadow-md dark:bg-gray-800">
+        <div className="mt-6 w-full max-w-3xl p-4 bg-card dark:bg-card rounded-lg shadow-md border border-border">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-lg font-semibold">Calm Score (Realtime)</h3>
-            <span className="text-sm text-gray-600 dark:text-gray-300">
+            <h3 className="text-lg font-semibold text-card-foreground font-ntype82">Calm Score (Realtime)</h3>
+            <span className="text-sm text-muted-foreground font-ntype82">
               Latest: {calmSnapshot[calmSnapshot.length - 1].toFixed(1)}
             </span>
           </div>
           <div className="w-full h-32">
             <svg
-              viewBox={`0 0 ${maxPoints - 1} 100`}
+              viewBox={`0 0 ${maxPoints - 1 + 25} 100`}
               preserveAspectRatio="none"
               className="w-full h-full"
             >
-              <g stroke="#e5e7eb" strokeWidth="0.5">
-                <line x1="0" y1="0" x2={maxPoints - 1} y2="0" />
-                <line x1="0" y1="25" x2={maxPoints - 1} y2="25" />
-                <line x1="0" y1="50" x2={maxPoints - 1} y2="50" />
-                <line x1="0" y1="75" x2={maxPoints - 1} y2="75" />
-                <line x1="0" y1="100" x2={maxPoints - 1} y2="100" />
+              <g stroke="var(--border)" strokeWidth="0.5">
+                <line x1="25" y1="0" x2={maxPoints - 1 + 25} y2="0" />
+                <line x1="25" y1="25" x2={maxPoints - 1 + 25} y2="25" />
+                <line x1="25" y1="50" x2={maxPoints - 1 + 25} y2="50" />
+                <line x1="25" y1="75" x2={maxPoints - 1 + 25} y2="75" />
+                <line x1="25" y1="100" x2={maxPoints - 1 + 25} y2="100" />
               </g>
-              <g fill="#6b7280" fontSize="8">
+              <g fill="var(--muted-foreground)" fontSize="8" fontFamily="var(--font-ntype82)">
                 <text x="2" y="8">100</text>
                 <text x="2" y="33">75</text>
                 <text x="2" y="58">50</text>
@@ -326,15 +517,15 @@ export default function Dashboard() {
               </g>
               <polyline
                 fill="none"
-                stroke="#3b82f6"
+                stroke="var(--chart-1)"
                 strokeWidth="2"
                 points={
                   calmSnapshot
                     .map((v, i) => {
                       const x =
                         calmSnapshot.length > 1
-                          ? (i * (maxPoints - 1)) / (calmSnapshot.length - 1)
-                          : 0;
+                          ? 25 + (i * (maxPoints - 1)) / (calmSnapshot.length - 1)
+                          : 25;
                       const clamped = Math.max(0, Math.min(100, v));
                       const y = 100 - clamped;
                       return `${x},${y}`;
@@ -347,25 +538,25 @@ export default function Dashboard() {
         </div>
       )}
       {eegSnapshot.length > 0 && (
-        <div className="mt-6 w-full max-w-3xl p-4 bg-white rounded-lg shadow-md dark:bg-gray-800">
+        <div className="mt-6 w-full max-w-3xl p-4 bg-card dark:bg-card rounded-lg shadow-md border border-border">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-lg font-semibold">Raw EEG (Realtime)</h3>
-            <span className="text-sm text-gray-600 dark:text-gray-300">
+            <h3 className="text-lg font-semibold text-card-foreground font-ntype82">Raw EEG (Realtime)</h3>
+            <span className="text-sm text-muted-foreground font-ntype82">
               Latest: {eegSnapshot[eegSnapshot.length - 1].toFixed(0)}
             </span>
           </div>
           <div className="w-full h-32">
             <svg
-              viewBox={`0 0 ${maxEegPoints - 1} 100`}
+              viewBox={`0 0 ${maxEegPoints - 1 + 25} 100`}
               preserveAspectRatio="none"
               className="w-full h-full"
             >
-              <g stroke="#e5e7eb" strokeWidth="0.5">
-                <line x1="0" y1="0" x2={maxEegPoints - 1} y2="0" />
-                <line x1="0" y1="25" x2={maxEegPoints - 1} y2="25" />
-                <line x1="0" y1="50" x2={maxEegPoints - 1} y2="50" />
-                <line x1="0" y1="75" x2={maxEegPoints - 1} y2="75" />
-                <line x1="0" y1="100" x2={maxEegPoints - 1} y2="100" />
+              <g stroke="var(--border)" strokeWidth="0.5">
+                <line x1="25" y1="0" x2={maxEegPoints - 1 + 25} y2="0" />
+                <line x1="25" y1="25" x2={maxEegPoints - 1 + 25} y2="25" />
+                <line x1="25" y1="50" x2={maxEegPoints - 1 + 25} y2="50" />
+                <line x1="25" y1="75" x2={maxEegPoints - 1 + 25} y2="75" />
+                <line x1="25" y1="100" x2={maxEegPoints - 1 + 25} y2="100" />
               </g>
               {(() => {
                 const min = Math.min(...eegSnapshot);
@@ -375,8 +566,8 @@ export default function Dashboard() {
                   .map((v, i) => {
                     const x =
                       eegSnapshot.length > 1
-                        ? (i * (maxEegPoints - 1)) / (eegSnapshot.length - 1)
-                        : 0;
+                        ? 25 + (i * (maxEegPoints - 1)) / (eegSnapshot.length - 1)
+                        : 25;
                     const norm = ((v - min) / span) * 100;
                     const y = 100 - norm;
                     return `${x},${y}`;
@@ -385,7 +576,7 @@ export default function Dashboard() {
                 return (
                   <polyline
                     fill="none"
-                    stroke="#10b981"
+                    stroke="var(--chart-1)"
                     strokeWidth="1.5"
                     points={points}
                   />
@@ -393,17 +584,17 @@ export default function Dashboard() {
               })()}
             </svg>
           </div>
-          <div className="mt-1 text-xs text-gray-500 dark:text-gray-300">
+          <div className="mt-1 text-xs text-muted-foreground font-ntype82">
             Auto-scaled to current window (min/max).
           </div>
         </div>
       )}
       {showCollectingToast && (
         <div className="fixed bottom-4 right-4 z-50">
-          <div className="flex items-center gap-2 rounded-md bg-slate-900 text-white px-4 py-3 shadow-lg">
+          <div className="flex items-center gap-2 rounded-md bg-primary text-secondary-foreground px-4 py-3 shadow-lg border border-border font-ntype82">
             <span className="relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-chart-1 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-chart-1"></span>
             </span>
             <span>Collecting data for prediction…</span>
           </div>
