@@ -118,47 +118,29 @@ export default function Dashboard() {
 
   const handleLogout = async () => {
     try {
-      if (guardianClient) {
-        const authBaseUrl = process.env.NEXT_PUBLIC_AUTH_BASE_URL;
-        const appId = process.env.NEXT_PUBLIC_AUTH_APPID_WEB;
+      // Clear all local storage and session storage
+      if (typeof window !== 'undefined') {
+        // Clear all localStorage items
+        localStorage.clear();
+        // Clear all sessionStorage items
+        sessionStorage.clear();
         
-        if (!authBaseUrl || !appId) {
-          console.error("Missing auth configuration");
-          if (typeof window !== 'undefined') {
-            localStorage.clear();
-            sessionStorage.clear();
-            window.location.href = "/";
-          }
-          return;
+        // Also try to clear any SDK-specific storage
+        // The SDK might store tokens in specific keys
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key) keysToRemove.push(key);
         }
-  
-        // For web, redirect_uri should be the full URL to the logout page
-        const baseUrl = typeof window !== 'undefined' 
-          ? window.location.origin 
-          : '';
-        const redirectUri = `${baseUrl}/auth/cognito/callback`;        
-        // Construct the logout URL with redirect_uri and client_id query parameters
-        const logoutUrl = `${authBaseUrl}/logout?${new URLSearchParams({
-          redirect_uri: redirectUri,
-          client_id: appId,
-          response_type: 'code',
-        }).toString()}`;
+        keysToRemove.forEach(key => localStorage.removeItem(key));
         
-        // Clear local tokens before redirecting
-        if (typeof window !== 'undefined') {
-          localStorage.clear();
-          sessionStorage.clear();
-        }
-        
-        // Redirect to the logout URL - this will redirect back to redirectUri after logout
-        window.location.href = logoutUrl;
-      } else {
-        if (typeof window !== 'undefined') {
-          window.location.href = "/";
-        }
+        // Immediately redirect to home
+        // This bypasses the OAuth server logout page entirely
+        window.location.href = "/";
       }
     } catch (error) {
       console.error("Logout failed:", error);
+      // Fallback: always redirect to home
       if (typeof window !== 'undefined') {
         localStorage.clear();
         sessionStorage.clear();

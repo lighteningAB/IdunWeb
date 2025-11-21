@@ -12,10 +12,31 @@ export default function ClientCallback() {
     const processAuth = async () => {
       try {
         const code = searchParams.get("code");
-        if (!code) {
-          router.push("/");
+        const error = searchParams.get("error");
+        const scope = searchParams.get("scope");
+        const state = searchParams.get("state");
+        const logout = searchParams.get("logout");
+        
+        // If coming from logout: check for logout parameter OR no state parameter
+        // Redirect to home immediately without any auth checks
+        if (logout === "true" || (!state && !code && !error)) {
+          router.replace("/");
           return;
         }
+        
+        // If there's an error, redirect to home
+        if (error) {
+          router.replace("/");
+          return;
+        }
+        
+        // If no code (but might have other params), redirect to home
+        if (!code) {
+          router.replace("/");
+          return;
+        }
+        
+        // We have a code, so this is a login flow
         const guardianClient = getGuardian();
         const auth = await guardianClient.checkAuth();
         if (auth?.authenticated) {
@@ -24,7 +45,7 @@ export default function ClientCallback() {
           router.push("/");
         }
       } catch {
-        router.push("/");
+        router.replace("/");
       }
     };
     processAuth();
@@ -36,5 +57,3 @@ export default function ClientCallback() {
     </div>
   );
 }
-
-
