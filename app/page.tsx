@@ -7,6 +7,7 @@ import React, {
   useMemo,
   Suspense,
 } from "react";
+
 import { useRouter } from "next/navigation";
 import { getGuardian } from "@/lib/guardian";
 import { Canvas, useFrame } from "@react-three/fiber";
@@ -51,14 +52,14 @@ export default function Home() {
       <EarScene />
 
       <div className="flex flex-col items-center justify-center min-h-screen p-8 relative z-10">
-        <div className="rounded-3xl bg-[#f2f2f2]/90 px-10 py-12 flex flex-col items-center w-full max-w-xl">
+        <div className="rounded-3xl bg-[#f2f2f2]/70 backdrop-blur-sm px-10 py-12 flex flex-col items-center w-full max-w-xl">
           <main className="flex flex-col items-center gap-8 w-full">
-            <h1 className="text-3xl font-bold mb-4 text-center">
+            <h1 className="text-3xl mb-4 text-center font-ndot text-card-foreground">
               Nothing Ear Brainwave Monitor
             </h1>
 
             <button
-              className="rounded-full bg-yellow-400/90 hover:bg-yellow-500/90 text-white font-bold py-3 px-6 disabled:opacity-50"
+              className="rounded-full bg-[var(--brand-yellow)]/90 hover:opacity-80 text-foreground font-ntype82 py-3 px-6 disabled:opacity-50 transition-opacity font-bold"
               onClick={handleLogin}
               disabled={isLoading || !guardianClient}
             >

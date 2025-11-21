@@ -315,8 +315,8 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        Loading...
+      <div className="flex justify-center items-center h-screen font-ntype82">
+        <span className="text-foreground">Loading...</span>
       </div>
     );
   }
@@ -326,18 +326,14 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-8">
-      <h1 className="text-3xl font-bold mb-8">Brainwave Dashboard</h1>
-      <div className="mb-8 p-6 bg-[#f2f2f2]/90 rounded-lg dark:bg-gray-800 w-full max-w-md">
-        <h2 className="text-xl font-semibold mb-4">Successfully Logged In!</h2>
-        <p className="mb-4">
-          You are now connected to your IDUN Guardian account.
-        </p>
+    <div className="flex flex-col items-center justify-center min-h-screen p-8 font-ntype82 bg-background">
+      <h1 className="text-3xl font-bold mb-8 text-foreground font-ndot">Brainwave Dashboard</h1>
+      <div className="mb-8 p-6 bg-card dark:bg-card rounded-lg w-full max-w-md border border-border shadow-lg">
 
         <div className="flex flex-col gap-4 mt-6">
           {!connectedEarbuds ? (
             <button
-              className="bg-sky-500 hover:bg-sky-600 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+              className="bg-[var(--index-blue)] hover:opacity-90 text-white font-bold py-2 px-4 rounded disabled:opacity-50 font-ntype82 transition-opacity dark:bg-accent dark:text-accent-foreground"
               onClick={handleConnectDevice}
               disabled={isConnecting}
             >
@@ -345,47 +341,55 @@ export default function Dashboard() {
             </button>
           ) : (
             <div className="flex flex-col gap-3">
-              <div className="p-4 bg-green-50 dark:bg-green-800 rounded-md">
-                <p className="font-medium">Device Connected!</p>
+              <div className="p-4 bg-muted rounded-md border border-border">
+                <p className="font-medium text-muted-foreground font-ntype82">Device Connected!</p>
                 {batteryLevel !== undefined && (
-                  <p className="text-sm mt-1">Battery Level: {batteryLevel}%</p>
+                  <p className="text-sm mt-1 text-muted-foreground font-ntype82">Battery Level: {batteryLevel}%</p>
                 )}
               </div>
               <button
-                className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+                className={`${
+                  isEEGStreaming ? "bg-destructive text-white" : "bg-accent text-accent-foreground"
+                } hover:opacity-90 font-bold py-2 px-4 rounded font-ntype82 transition-opacity disabled:opacity-50`}
                 onClick={handleEEGStream}
+                disabled={isDisconnecting}
               >
                 {isEEGStreaming ? "Stop EEG Stream" : "Start EEG Stream"}
               </button>
+
               {isEEGStreaming && (
                 <button
-                  className="bg-green-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+                  className={`${
+                    isPredicting ? "bg-destructive text-white" : "bg-accent text-accent-foreground"
+                  } hover:opacity-90 font-bold py-2 px-4 rounded font-ntype82 transition-opacity disabled:opacity-50`}
                   onClick={handleRealtimePrediction}
+                  disabled={isDisconnecting}
                 >
                   {isPredicting ? "Stop Realtime Prediction" : "Start Realtime Prediction"}
                 </button>
-                )
-              }
+              )}
               <button
-                className="bg-slate-500 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+                className="bg-destructive hover:opacity-90 text-white font-bold py-2 px-4 rounded disabled:opacity-50 font-ntype82 transition-opacity"
                 onClick={handleDisconnectDevice}
                 disabled={isDisconnecting}
               >
                 {isDisconnecting ? "Disconnecting..." : "Disconnect Device"}
               </button>
               {Capacitor.isNativePlatform() && (
-                <div className="flex gap-2 mt-2">
+                <div>
                   {!bgRunning ? (
                     <button
-                      className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 px-4 rounded"
+                      className="bg-[var(--brand-yellow)] hover:opacity-90 text-black font-bold py-2 px-4 rounded font-ntype82 transition-opacity disabled:opacity-50"
                       onClick={handleStartBackground}
+                      disabled={isDisconnecting}
                     >
                       Start Background Logging
                     </button>
                   ) : (
                     <button
-                      className="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded"
+                      className="bg-[var(--brand-yellow)] hover:opacity-90 text-black font-bold py-2 px-4 rounded font-ntype82 transition-opacity disabled:opacity-50"
                       onClick={handleStopBackground}
+                      disabled={isDisconnecting}
                     >
                       Stop Background Logging
                     </button>
@@ -396,7 +400,7 @@ export default function Dashboard() {
           )}
 
           <button
-            className="bg-rose-500 hover:bg-rose-600 text-white font-bold py-2 px-4 rounded mt-4"
+            className="bg-destructive hover:opacity-90 text-white font-bold py-2 px-4 rounded mt-4 font-ntype82 transition-opacity"
             onClick={handleLogout}
           >
             Logout
@@ -404,69 +408,69 @@ export default function Dashboard() {
         </div>
       </div>
       {/* Realtime Predictions Overview */}
-      <div className="mt-6 w-full max-w-3xl p-4 bg-white rounded-lg shadow-md dark:bg-gray-800">
-        <h3 className="text-lg font-semibold mb-3">Realtime Predictions Overview</h3>
+      <div className="mt-6 w-full max-w-3xl p-4 bg-card dark:bg-card rounded-lg shadow-md border border-border">
+        <h3 className="text-lg font-semibold mb-3 text-card-foreground font-ntype82">Realtime Predictions Overview</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <div className="p-3 rounded border border-gray-200 dark:border-gray-700">
+          <div className="p-3 rounded border border-border bg-muted">
             <div className="flex items-center justify-between">
-              <span className="font-medium">Calm Score</span>
-              <span className={`h-2.5 w-2.5 rounded-full ${hasCalmPrediction ? "bg-emerald-500" : "bg-gray-300"}`} />
+              <span className="font-medium text-muted-foreground font-ntype82">Calm Score</span>
+              <span className={`h-2.5 w-2.5 rounded-full ${hasCalmPrediction ? "bg-chart-1" : "bg-muted-foreground/30"}`} />
             </div>
-            <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+            <div className="text-sm text-muted-foreground mt-1 font-ntype82">
               {hasCalmPrediction
                 ? `Latest: ${calmSnapshot.length ? calmSnapshot[calmSnapshot.length - 1].toFixed(1) : "—"}`
                 : "Waiting…"}
             </div>
           </div>
-          <div className="p-3 rounded border border-gray-200 dark:border-gray-700">
+          <div className="p-3 rounded border border-border bg-muted">
             <div className="flex items-center justify-between">
-              <span className="font-medium">Quality Score</span>
-              <span className={`h-2.5 w-2.5 rounded-full ${hasQualityScore ? "bg-emerald-500" : "bg-gray-300"}`} />
+              <span className="font-medium text-muted-foreground font-ntype82">Quality Score</span>
+              <span className={`h-2.5 w-2.5 rounded-full ${hasQualityScore ? "bg-chart-1" : "bg-muted-foreground/30"}`} />
             </div>
-            <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+            <div className="text-sm text-muted-foreground mt-1 font-ntype82">
               {hasQualityScore
                 ? `Latest: ${lastQualityScore ?? "—"}`
                 : "Waiting…"}
             </div>
           </div>
-          <div className="p-3 rounded border border-gray-200 dark:border-gray-700">
+          <div className="p-3 rounded border border-border bg-muted">
             <div className="flex items-center justify-between">
-              <span className="font-medium">Jaw Clench</span>
-              <span className={`h-2.5 w-2.5 rounded-full ${hasJawClench ? "bg-emerald-500" : "bg-gray-300"}`} />
+              <span className="font-medium text-muted-foreground font-ntype82">Jaw Clench</span>
+              <span className={`h-2.5 w-2.5 rounded-full ${hasJawClench ? "bg-chart-1" : "bg-muted-foreground/30"}`} />
             </div>
-            <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+            <div className="text-sm text-muted-foreground mt-1 font-ntype82">
               {hasJawClench
                 ? `Latest: ${lastJawClench ?? "—"}`
                 : "Waiting…"}
             </div>
           </div>
-          <div className="p-3 rounded border border-gray-200 dark:border-gray-700">
+          <div className="p-3 rounded border border-border bg-muted">
             <div className="flex items-center justify-between">
-              <span className="font-medium">Eye Movement (HEOG)</span>
-              <span className={`h-2.5 w-2.5 rounded-full ${hasHeog ? "bg-emerald-500" : "bg-gray-300"}`} />
+              <span className="font-medium text-muted-foreground font-ntype82">Eye Movement (HEOG)</span>
+              <span className={`h-2.5 w-2.5 rounded-full ${hasHeog ? "bg-chart-1" : "bg-muted-foreground/30"}`} />
             </div>
-            <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+            <div className="text-sm text-muted-foreground mt-1 font-ntype82">
               {hasHeog
                 ? `Latest: ${lastHeogDirection === -1 ? "LEFT" : lastHeogDirection === 1 ? "RIGHT" : "—"}`
                 : "Waiting…"}
             </div>
           </div>
-          <div className="p-3 rounded border border-gray-200 dark:border-gray-700">
+          <div className="p-3 rounded border border-border bg-muted">
             <div className="flex items-center justify-between">
-              <span className="font-medium">FFT</span>
-              <span className={`h-2.5 w-2.5 rounded-full ${hasFFT ? "bg-emerald-500" : "bg-gray-300"}`} />
+              <span className="font-medium text-muted-foreground font-ntype82">FFT</span>
+              <span className={`h-2.5 w-2.5 rounded-full ${hasFFT ? "bg-chart-1" : "bg-muted-foreground/30"}`} />
             </div>
-            <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+            <div className="text-sm text-muted-foreground mt-1 font-ntype82">
               {hasFFT ? "Receiving…" : "Waiting…"}
             </div>
           </div>
         </div>
       </div>
       {calmSnapshot.length > 0 && (
-        <div className="mt-6 w-full max-w-3xl p-4 bg-white rounded-lg shadow-md dark:bg-gray-800">
+        <div className="mt-6 w-full max-w-3xl p-4 bg-card dark:bg-card rounded-lg shadow-md border border-border">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-lg font-semibold">Calm Score (Realtime)</h3>
-            <span className="text-sm text-gray-600 dark:text-gray-300">
+            <h3 className="text-lg font-semibold text-card-foreground font-ntype82">Calm Score (Realtime)</h3>
+            <span className="text-sm text-muted-foreground font-ntype82">
               Latest: {calmSnapshot[calmSnapshot.length - 1].toFixed(1)}
             </span>
           </div>
@@ -476,14 +480,14 @@ export default function Dashboard() {
               preserveAspectRatio="none"
               className="w-full h-full"
             >
-              <g stroke="#e5e7eb" strokeWidth="0.5">
+              <g stroke="var(--border)" strokeWidth="0.5">
                 <line x1="0" y1="0" x2={maxPoints - 1} y2="0" />
                 <line x1="0" y1="25" x2={maxPoints - 1} y2="25" />
                 <line x1="0" y1="50" x2={maxPoints - 1} y2="50" />
                 <line x1="0" y1="75" x2={maxPoints - 1} y2="75" />
                 <line x1="0" y1="100" x2={maxPoints - 1} y2="100" />
               </g>
-              <g fill="#6b7280" fontSize="8">
+              <g fill="var(--muted-foreground)" fontSize="8" fontFamily="var(--font-ntype82)">
                 <text x="2" y="8">100</text>
                 <text x="2" y="33">75</text>
                 <text x="2" y="58">50</text>
@@ -492,7 +496,7 @@ export default function Dashboard() {
               </g>
               <polyline
                 fill="none"
-                stroke="#3b82f6"
+                stroke="var(--chart-1)"
                 strokeWidth="2"
                 points={
                   calmSnapshot
@@ -513,10 +517,10 @@ export default function Dashboard() {
         </div>
       )}
       {eegSnapshot.length > 0 && (
-        <div className="mt-6 w-full max-w-3xl p-4 bg-white rounded-lg shadow-md dark:bg-gray-800">
+        <div className="mt-6 w-full max-w-3xl p-4 bg-card dark:bg-card rounded-lg shadow-md border border-border">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-lg font-semibold">Raw EEG (Realtime)</h3>
-            <span className="text-sm text-gray-600 dark:text-gray-300">
+            <h3 className="text-lg font-semibold text-card-foreground font-ntype82">Raw EEG (Realtime)</h3>
+            <span className="text-sm text-muted-foreground font-ntype82">
               Latest: {eegSnapshot[eegSnapshot.length - 1].toFixed(0)}
             </span>
           </div>
@@ -526,7 +530,7 @@ export default function Dashboard() {
               preserveAspectRatio="none"
               className="w-full h-full"
             >
-              <g stroke="#e5e7eb" strokeWidth="0.5">
+              <g stroke="var(--border)" strokeWidth="0.5">
                 <line x1="0" y1="0" x2={maxEegPoints - 1} y2="0" />
                 <line x1="0" y1="25" x2={maxEegPoints - 1} y2="25" />
                 <line x1="0" y1="50" x2={maxEegPoints - 1} y2="50" />
@@ -551,7 +555,7 @@ export default function Dashboard() {
                 return (
                   <polyline
                     fill="none"
-                    stroke="#10b981"
+                    stroke="var(--chart-1)"
                     strokeWidth="1.5"
                     points={points}
                   />
@@ -559,17 +563,17 @@ export default function Dashboard() {
               })()}
             </svg>
           </div>
-          <div className="mt-1 text-xs text-gray-500 dark:text-gray-300">
+          <div className="mt-1 text-xs text-muted-foreground font-ntype82">
             Auto-scaled to current window (min/max).
           </div>
         </div>
       )}
       {showCollectingToast && (
         <div className="fixed bottom-4 right-4 z-50">
-          <div className="flex items-center gap-2 rounded-md bg-slate-900 text-white px-4 py-3 shadow-lg">
+          <div className="flex items-center gap-2 rounded-md bg-primary text-secondary-foreground px-4 py-3 shadow-lg border border-border font-ntype82">
             <span className="relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-chart-1 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-chart-1"></span>
             </span>
             <span>Collecting data for prediction…</span>
           </div>

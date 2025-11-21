@@ -1,4 +1,301 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
 @import "tailwindcss";
+@import "tw-animate-css";
+
+@font-face {
+  font-family: 'NType82';
+  src: url('/fonts/NType82-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'NType82';
+  src: url('/fonts/NType82-Headline.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'NType82 Mono';
+  src: url('/fonts/NType82Mono-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Ndot';
+  src: url('/fonts/Ndot-55.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Ndot';
+  src: url('/fonts/Ndot-57.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Ndot';
+  src: url('/fonts/Ndot55Headline-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+
+  /* BASE: NOTHING Colour Tokens */
+
+  /* Neutral-1 Color Palette */
+  --neutral-1-0: #FFFFFF;
+  --neutral-1-50: #F2F2F2;
+  --neutral-1-100: #E3E3E3;
+  --neutral-1-200: #C8C8C8;
+  --neutral-1-300: #ADADAD;
+  --neutral-1-400: #929292;
+  --neutral-1-500: #777777;
+  --neutral-1-600: #606060;
+  --neutral-1-700: #484848;
+  --neutral-1-800: #323232;
+  --neutral-1-900: #1C1C1C;
+  --neutral-1-1000: #000000;
+
+  /* Neutral-2 Color Palette */
+  --neutral-2-0: #FFFFFF;
+  --neutral-2-50: #EFF0FA;
+  --neutral-2-100: #E0E2EB;
+  --neutral-2-200: #C4C6CF;
+  --neutral-2-300: #A9AAB3;
+  --neutral-2-400: #8E9199;
+  --neutral-2-500: #74767D;
+  --neutral-2-600: #5C5E65;
+  --neutral-2-700: #44464D;
+  --neutral-2-800: #2E3037;
+  --neutral-2-900: #191B21;
+  --neutral-2-1000: #000000;
+
+  /* Accent-1 Color Palette */
+  --accent-1-0: #FFFFFF;
+  --accent-1-50: #ECF0FE;
+  --accent-1-100: #D8E2FC;
+  --accent-1-200: #B1C6FA;
+  --accent-1-300: #96AADF;
+  --accent-1-400: #7B8FC3;
+  --accent-1-500: #6075A6;
+  --accent-1-600: #495D8D;
+  --accent-1-700: #314574;
+  --accent-1-800: #182E5D;
+  --accent-1-900: #061940;
+  --accent-1-1000: #000000;
+
+  /* Accent-2 Color Palette */
+  --accent-2-0: #FFFFFF;
+  --accent-2-50: #ECF0FE;
+  --accent-2-100: #DCE2F7;
+  --accent-2-200: #C0C6DA;
+  --accent-2-300: #A4ABBF;
+  --accent-2-400: #8A91A3;
+  --accent-2-500: #707687;
+  --accent-2-600: #585E6F;
+  --accent-2-700: #404757;
+  --accent-2-800: #2A3040;
+  --accent-2-900: #151C2B;
+  --accent-2-1000: #000000;
+
+  /* Brand Color Palette */
+  --brand-white: #FFFFFF;
+  --brand-black: #000000;
+  --brand-red: #D71921;
+  --brand-blue: #2A2B7B;
+  --brand-yellow: #FFC700;
+  --brand-grey: #B1B3B3;
+  --brand-green: #1DB159;
+
+  /* PROJECT SPECIFIC COLOUR TOKENS */
+  --index-blue: #365988;
+
+  /* BASE 2 (They refer to BASE 1): SHADCN Colour Tokens */
+  --background: var(--index-blue);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: var(--neutral-1-0);
+  --primary-foreground: var(--index-blue);
+  --secondary: var(--neutral-1-900);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: var(--neutral-1-600);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.577 0.245 27.325);
+  --border: var(--neutral-1-50);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: #2FF32F;
+  --chart-2: #FF6213;
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  /* BASE 2 (They refer to BASE 1): SHADCN Colour Tokens */
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.145 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.145 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.985 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.396 0.141 25.723);
+  --destructive-foreground: oklch(0.637 0.237 25.331);
+  --border: oklch(0.269 0 0);
+  --input: oklch(0.269 0 0);
+  --ring: oklch(0.439 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(0.269 0 0);
+  --sidebar-ring: oklch(0.439 0 0);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --font-ntype82: "NType82", sans-serif;
+  --font-ntype82-mono: "NType82 Mono", monospace;
+  --font-ndot: "Ndot", sans-serif;
+  --font-inter: "Inter", sans-serif;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+
+/* Vertical Green Dashed Border */
+.vertical-dashed-border {
+  position: relative;
+  /* Adjust spacing from border as needed */
+}
+
+.vertical-dashed-border::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  /* Border thickness */
+  background: 
+    linear-gradient(to bottom, 
+      #2FF32F 0px, #2FF32F 1px,     /* First square dot */
+      transparent 1px, transparent 3px,
+      #2FF32F 3px, #2FF32F 4px,     /* Second square dot */
+      transparent 4px, transparent 6px,
+      #2FF32F 6px, #2FF32F 7px,     /* Third square dot */
+      transparent 7px, transparent 9px,
+      #2FF32F 9px, #2FF32F 11px,    /* Square line */
+      transparent 11px, transparent 13px /* Gap before repeat */
+    );
+  background-size: 1px 13px;
+  background-repeat: repeat-y;
+}
+
+@keyframes scroll-banner {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-scroll-banner {
+  animation: scroll-banner 30s linear infinite;
+}
+
+.animate-scroll-banner-slow {
+  animation: scroll-banner 120s linear infinite;
+}
 
 :root {
   --background: #ffffff;
