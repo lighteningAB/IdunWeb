@@ -119,12 +119,51 @@ export default function Dashboard() {
   const handleLogout = async () => {
     try {
       if (guardianClient) {
-        await guardianClient.logout();
-        // No need for router.push as the SDK will redirect
+        const authBaseUrl = process.env.NEXT_PUBLIC_AUTH_BASE_URL;
+        const appId = process.env.NEXT_PUBLIC_AUTH_APPID_WEB;
+        
+        if (!authBaseUrl || !appId) {
+          console.error("Missing auth configuration");
+          if (typeof window !== 'undefined') {
+            localStorage.clear();
+            sessionStorage.clear();
+            window.location.href = "/";
+          }
+          return;
+        }
+  
+        // For web, redirect_uri should be the full URL to the logout page
+        const baseUrl = typeof window !== 'undefined' 
+          ? window.location.origin 
+          : '';
+        const redirectUri = `${baseUrl}/auth/cognito/callback`;        
+        // Construct the logout URL with redirect_uri and client_id query parameters
+        const logoutUrl = `${authBaseUrl}/logout?${new URLSearchParams({
+          redirect_uri: redirectUri,
+          client_id: appId,
+          response_type: 'code',
+        }).toString()}`;
+        
+        // Clear local tokens before redirecting
+        if (typeof window !== 'undefined') {
+          localStorage.clear();
+          sessionStorage.clear();
+        }
+        
+        // Redirect to the logout URL - this will redirect back to redirectUri after logout
+        window.location.href = logoutUrl;
+      } else {
+        if (typeof window !== 'undefined') {
+          window.location.href = "/";
+        }
       }
     } catch (error) {
       console.error("Logout failed:", error);
-      window.location.href = "/";
+      if (typeof window !== 'undefined') {
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = "/";
+      }
     }
   };
 
@@ -333,7 +372,7 @@ export default function Dashboard() {
         <div className="flex flex-col gap-4 mt-6">
           {!connectedEarbuds ? (
             <button
-              className="bg-[var(--index-blue)] hover:opacity-90 text-white font-bold py-2 px-4 rounded disabled:opacity-50 font-ntype82 transition-opacity dark:bg-accent dark:text-accent-foreground"
+              className="bg-[var(--index-blue)] hover:opacity-90 active:opacity-70 text-white font-bold py-2 px-4 rounded disabled:opacity-50 font-ntype82 transition-opacity dark:bg-accent dark:text-accent-foreground"
               onClick={handleConnectDevice}
               disabled={isConnecting}
             >
@@ -350,7 +389,7 @@ export default function Dashboard() {
               <button
                 className={`${
                   isEEGStreaming ? "bg-destructive text-white" : "bg-accent text-accent-foreground"
-                } hover:opacity-90 font-bold py-2 px-4 rounded font-ntype82 transition-opacity disabled:opacity-50`}
+                } hover:opacity-90 active:opacity-70 font-bold py-2 px-4 rounded font-ntype82 transition-opacity disabled:opacity-50`}
                 onClick={handleEEGStream}
                 disabled={isDisconnecting}
               >
@@ -361,7 +400,7 @@ export default function Dashboard() {
                 <button
                   className={`${
                     isPredicting ? "bg-destructive text-white" : "bg-accent text-accent-foreground"
-                  } hover:opacity-90 font-bold py-2 px-4 rounded font-ntype82 transition-opacity disabled:opacity-50`}
+                  } hover:opacity-90 active:opacity-70 font-bold py-2 px-4 rounded font-ntype82 transition-opacity disabled:opacity-50`}
                   onClick={handleRealtimePrediction}
                   disabled={isDisconnecting}
                 >
@@ -369,7 +408,7 @@ export default function Dashboard() {
                 </button>
               )}
               <button
-                className="bg-destructive hover:opacity-90 text-white font-bold py-2 px-4 rounded disabled:opacity-50 font-ntype82 transition-opacity"
+                className="bg-destructive hover:opacity-90 active:opacity-70 text-white font-bold py-2 px-4 rounded disabled:opacity-50 font-ntype82 transition-opacity"
                 onClick={handleDisconnectDevice}
                 disabled={isDisconnecting}
               >
@@ -379,7 +418,7 @@ export default function Dashboard() {
                 <div>
                   {!bgRunning ? (
                     <button
-                      className="bg-[var(--brand-yellow)] hover:opacity-90 text-black font-bold py-2 px-4 rounded font-ntype82 transition-opacity disabled:opacity-50"
+                      className="bg-[var(--brand-yellow)] hover:opacity-90 active:opacity-70 text-black font-bold py-2 px-4 rounded font-ntype82 transition-opacity disabled:opacity-50"
                       onClick={handleStartBackground}
                       disabled={isDisconnecting}
                     >
@@ -387,7 +426,7 @@ export default function Dashboard() {
                     </button>
                   ) : (
                     <button
-                      className="bg-[var(--brand-yellow)] hover:opacity-90 text-black font-bold py-2 px-4 rounded font-ntype82 transition-opacity disabled:opacity-50"
+                      className="bg-[var(--brand-yellow)] hover:opacity-90 active:opacity-70 text-black font-bold py-2 px-4 rounded font-ntype82 transition-opacity disabled:opacity-50"
                       onClick={handleStopBackground}
                       disabled={isDisconnecting}
                     >
@@ -400,7 +439,7 @@ export default function Dashboard() {
           )}
 
           <button
-            className="bg-destructive hover:opacity-90 text-white font-bold py-2 px-4 rounded mt-4 font-ntype82 transition-opacity"
+            className="bg-destructive hover:opacity-90 active:opacity-70 text-white font-bold py-2 px-4 rounded mt-4 font-ntype82 transition-opacity"
             onClick={handleLogout}
           >
             Logout
@@ -476,16 +515,16 @@ export default function Dashboard() {
           </div>
           <div className="w-full h-32">
             <svg
-              viewBox={`0 0 ${maxPoints - 1} 100`}
+              viewBox={`0 0 ${maxPoints - 1 + 25} 100`}
               preserveAspectRatio="none"
               className="w-full h-full"
             >
               <g stroke="var(--border)" strokeWidth="0.5">
-                <line x1="0" y1="0" x2={maxPoints - 1} y2="0" />
-                <line x1="0" y1="25" x2={maxPoints - 1} y2="25" />
-                <line x1="0" y1="50" x2={maxPoints - 1} y2="50" />
-                <line x1="0" y1="75" x2={maxPoints - 1} y2="75" />
-                <line x1="0" y1="100" x2={maxPoints - 1} y2="100" />
+                <line x1="25" y1="0" x2={maxPoints - 1 + 25} y2="0" />
+                <line x1="25" y1="25" x2={maxPoints - 1 + 25} y2="25" />
+                <line x1="25" y1="50" x2={maxPoints - 1 + 25} y2="50" />
+                <line x1="25" y1="75" x2={maxPoints - 1 + 25} y2="75" />
+                <line x1="25" y1="100" x2={maxPoints - 1 + 25} y2="100" />
               </g>
               <g fill="var(--muted-foreground)" fontSize="8" fontFamily="var(--font-ntype82)">
                 <text x="2" y="8">100</text>
@@ -503,8 +542,8 @@ export default function Dashboard() {
                     .map((v, i) => {
                       const x =
                         calmSnapshot.length > 1
-                          ? (i * (maxPoints - 1)) / (calmSnapshot.length - 1)
-                          : 0;
+                          ? 25 + (i * (maxPoints - 1)) / (calmSnapshot.length - 1)
+                          : 25;
                       const clamped = Math.max(0, Math.min(100, v));
                       const y = 100 - clamped;
                       return `${x},${y}`;
@@ -526,16 +565,16 @@ export default function Dashboard() {
           </div>
           <div className="w-full h-32">
             <svg
-              viewBox={`0 0 ${maxEegPoints - 1} 100`}
+              viewBox={`0 0 ${maxEegPoints - 1 + 25} 100`}
               preserveAspectRatio="none"
               className="w-full h-full"
             >
               <g stroke="var(--border)" strokeWidth="0.5">
-                <line x1="0" y1="0" x2={maxEegPoints - 1} y2="0" />
-                <line x1="0" y1="25" x2={maxEegPoints - 1} y2="25" />
-                <line x1="0" y1="50" x2={maxEegPoints - 1} y2="50" />
-                <line x1="0" y1="75" x2={maxEegPoints - 1} y2="75" />
-                <line x1="0" y1="100" x2={maxEegPoints - 1} y2="100" />
+                <line x1="25" y1="0" x2={maxEegPoints - 1 + 25} y2="0" />
+                <line x1="25" y1="25" x2={maxEegPoints - 1 + 25} y2="25" />
+                <line x1="25" y1="50" x2={maxEegPoints - 1 + 25} y2="50" />
+                <line x1="25" y1="75" x2={maxEegPoints - 1 + 25} y2="75" />
+                <line x1="25" y1="100" x2={maxEegPoints - 1 + 25} y2="100" />
               </g>
               {(() => {
                 const min = Math.min(...eegSnapshot);
@@ -545,8 +584,8 @@ export default function Dashboard() {
                   .map((v, i) => {
                     const x =
                       eegSnapshot.length > 1
-                        ? (i * (maxEegPoints - 1)) / (eegSnapshot.length - 1)
-                        : 0;
+                        ? 25 + (i * (maxEegPoints - 1)) / (eegSnapshot.length - 1)
+                        : 25;
                     const norm = ((v - min) / span) * 100;
                     const y = 100 - norm;
                     return `${x},${y}`;
